@@ -8,6 +8,13 @@ import type { ResearchMode } from "./mode.ts";
  */
 const MUTATING_BUILTINS = new Set(["edit", "write"]);
 
+/**
+ * pi-nixify's `nix` tool: only package discovery is read-only. `exec` runs a
+ * command and must stay blocked while research mode is active.
+ */
+const NIX_TOOL = "nix";
+const NIX_READ_ONLY_ACTIONS = new Set(["search", "provides"]);
+
 function exitHint(toolName: string): string {
 	return `${toolName} is blocked in research mode (read-only). Run /research to disable research mode first.`;
 }
@@ -17,8 +24,9 @@ function exitHint(toolName: string): string {
  * research mode is active:
  *
  * 1. hard-block `edit`/`write` regardless of the active tool set;
- * 2. allow `bash` only when the command matches the read-only allowlist;
- * 3. block any tool whose provider marks it destructive.
+ * 2. restrict pi-nixify's `nix` tool to its read-only discovery actions;
+ * 3. allow `bash` only when the command matches the read-only allowlist;
+ * 4. block any tool whose provider marks it destructive.
  */
 export function registerGuard(pi: ExtensionAPI, mode: ResearchMode): void {
 	pi.on("tool_call", async (event) => {
@@ -26,6 +34,19 @@ export function registerGuard(pi: ExtensionAPI, mode: ResearchMode): void {
 
 		if (MUTATING_BUILTINS.has(event.toolName)) {
 			return { block: true, reason: exitHint(event.toolName) };
+		}
+
+		if (event.toolName === NIX_TOOL) {
+			const action = (event.input as { action?: unknown } | undefined)?.action;
+			if (typeof action === "string" && NIX_READ_ONLY_ACTIONS.has(action)) {
+				return undefined;
+			}
+			return {
+				block: true,
+				reason:
+					"Research mode: the nix tool is limited to its read-only actions (search, provides). " +
+					"Run /research to disable research mode first.",
+			};
 		}
 
 		if (isToolCallEventType("bash", event)) {

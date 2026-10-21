@@ -8,6 +8,8 @@ a read-only session mode for safe investigation. While active it:
 - restricts `bash` to a known read-only allowlist (`cat`, `grep`, `rg`, `find`,
   `fd`, `jq`, `git log`/`status`/`diff`, …) and blocks commands marked
   destructive;
+- limits pi-nixify's `nix` tool to its read-only discovery actions (`search`,
+  `provides`); `exec` is blocked because it runs a command;
 - activates the tools of the configured **research backends** directly for the
   model. The default backend is [ketch](https://github.com/...): web search,
   public-code search, curated docs, page scrape, bounded crawl, and bookmarking.
@@ -43,7 +45,7 @@ duration of the mode.
 extensions/research-mode/
 ├─ index.ts            # entry: command, flag, event wiring
 ├─ mode.ts             # state machine, toolset swap, persistence, context
-├─ guard.ts            # tool_call guard (write tools, bash, destructive tools)
+├─ guard.ts            # tool_call guard (write tools, nix tool, bash, destructive tools)
 ├─ bash-allowlist.ts   # read-only bash patterns
 └─ backends/
    ├─ types.ts         # ResearchBackend interface
